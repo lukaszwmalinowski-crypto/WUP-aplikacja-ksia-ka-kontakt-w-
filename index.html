@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WUP Kontakty">
+<title>WUP Kontakty Mobile</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+</head>
+<body class="locked-state">
+<section class="lock-screen" id="lockScreen">
+  <div class="lock-card">
+    <div class="logo-box lock-logo"><img id="lockLogo" alt="Logo WUP Katowice"></div>
+    <h1>WUP Kontakty</h1>
+    <p>Dane kontaktowe są zaszyfrowane. Wpisz kod dostępu, żeby uruchomić aplikację.</p>
+    <form id="unlockForm" class="unlock-form">
+      <input id="passwordInput" type="password" inputmode="text" autocomplete="current-password" placeholder="Kod dostępu">
+      <button id="unlockButton" type="submit">Odblokuj</button>
+    </form>
+    <div class="lock-error" id="lockError" role="alert"></div>
+  </div>
+</section>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo-box"><img id="brandLogo" alt="Logo WUP Katowice"></div>
+      <div class="title"><h1>WUP Kontakty</h1><p>mobilna książka kontaktów</p></div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="search-card">
+      <div class="search-row"><input id="search" type="search" placeholder="Szukaj nazwiska, komórki, telefonu..." autocomplete="off"></div>
+      <div class="quick">
+        <button data-quick="" class="active">Wszystko</button>
+        <button data-quick="wup">WUP</button>
+        <button data-quick="inst">Instytucje</button>
+      </div>
+    </div>
+  </section>
+
+  <main class="content">
+    <section id="view-search" class="section active">
+      <div class="section-head"><h2>Wyszukiwarka WUP</h2><div class="count" id="peopleCount"></div></div>
+      <div id="peopleResults" class="cards"></div>
+    </section>
+    <section id="view-org" class="section">
+      <div class="section-head"><h2>Schemat WUP</h2><div class="count" id="orgCount"></div></div>
+      <div class="toolbar"><button id="collapseTree" class="pill-btn">Zwiń wszystko</button><button id="expandTree" class="pill-btn">Rozwiń poziom</button></div>
+      <div id="orgTree" class="tree"></div>
+    </section>
+    <section id="view-inst" class="section">
+      <div class="section-head"><h2>Inne instytucje</h2><div class="count" id="instCount"></div></div>
+      <div class="inst-tabs">
+        <button data-inst="pup" class="active">PUP-y</button>
+        <button data-inst="frse">Agencja / FRSE</button>
+        <button data-inst="umsl">Urząd Marszałkowski</button>
+      </div>
+      <div id="inst-pup" class="inst-group active"></div>
+      <div id="inst-frse" class="inst-group"></div>
+      <div id="inst-umsl" class="inst-group"></div>
+    </section>
+  </main>
+</div>
+<nav class="bottom-nav" aria-label="Nawigacja">
+  <div class="bottom-nav-inner">
+    <button class="nav-btn active" data-view="search"><span>⌕</span>WUP</button>
+    <button class="nav-btn" data-view="org"><span>☷</span>Schemat</button>
+    <button class="nav-btn" data-view="inst"><span>◎</span>Instytucje</button>
+  </div>
+</nav>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
