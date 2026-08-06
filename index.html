@@ -47,6 +47,9 @@
   <main class="content">
     <section id="view-search" class="section active">
       <div class="section-head"><h2>Wyszukiwarka WUP</h2><div class="count" id="peopleCount"></div></div>
+      <div class="list-toolbar">
+        <button id="openSignList" class="list-action-btn" type="button"><span aria-hidden="true">▤</span> Wygeneruj listę do podpisu</button>
+      </div>
       <div id="peopleResults" class="cards"></div>
     </section>
     <section id="view-org" class="section">
@@ -67,6 +70,59 @@
     </section>
   </main>
 </div>
+
+<div class="modal-backdrop" id="signListModal" hidden>
+  <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="signListTitle">
+    <div class="modal-head">
+      <div>
+        <h2 id="signListTitle">Lista do podpisu</h2>
+        <p>Przygotuj czytelną listę A4 do wydruku albo zapisania jako PDF.</p>
+      </div>
+      <button id="closeSignList" class="icon-btn" type="button" aria-label="Zamknij">×</button>
+    </div>
+    <form id="signListForm" class="list-form">
+      <label>
+        <span>Tytuł listy</span>
+        <input id="signListHeading" type="text" value="Lista do podpisu" maxlength="120">
+      </label>
+      <label>
+        <span>Temat lub cel <small>(opcjonalnie)</small></span>
+        <input id="signListPurpose" type="text" placeholder="np. potwierdzenie zapoznania się z informacją" maxlength="180">
+      </label>
+      <div class="form-grid">
+        <label>
+          <span>Zakres osób</span>
+          <select id="signListScope">
+            <option value="filtered">Aktualne wyniki wyszukiwania</option>
+            <option value="all">Wszyscy pracownicy WUP</option>
+            <option value="central">Centrala WUP - bez filii</option>
+            <option value="branches">Obie filie WUP</option>
+            <option value="bielsko">Filia WUP w Bielsku-Białej</option>
+            <option value="czestochowa">Filia WUP w Częstochowie</option>
+          </select>
+        </label>
+        <label>
+          <span>Data <small>(opcjonalnie)</small></span>
+          <input id="signListDate" type="date">
+        </label>
+      </div>
+      <label>
+        <span>Układ listy</span>
+        <select id="signListSort">
+          <option value="scheme">Według schematu organizacyjnego - piony, zespoły i filie</option>
+          <option value="alpha">Alfabetycznie</option>
+          <option value="current">Bez grupowania - kolejność z aplikacji</option>
+        </select>
+      </label>
+      <div class="scope-note" id="signListScopeNote"></div>
+      <div class="modal-actions">
+        <button id="cancelSignList" class="secondary-btn" type="button">Anuluj</button>
+        <button class="primary-btn" type="submit">Otwórz listę do wydruku</button>
+      </div>
+    </form>
+  </section>
+</div>
+
 <nav class="bottom-nav" aria-label="Nawigacja">
   <div class="bottom-nav-inner">
     <button class="nav-btn active" data-view="search"><span>⌕</span>WUP</button>
