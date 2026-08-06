@@ -1,4 +1,4 @@
-const CACHE='wup-umsl-mobile-pwa-v8-bielsko-full-list-2026-08';
+const CACHE='wup-umsl-mobile-pwa-v7-sign-list-scheme-branches-nodup-2026-08';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./data.js','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));

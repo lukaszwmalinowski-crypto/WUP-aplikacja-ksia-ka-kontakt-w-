@@ -182,17 +182,13 @@ function uniquePeople(list) {
   });
 }
 
-function normalizeOrgLocation(value) {
-  return normalize(value).replace(/ł/g, "l");
-}
-
 function isBielskoPerson(person) {
-  const path = normalizeOrgLocation(person.path || person.unit || "");
+  const path = normalize(person.path || person.unit || "");
   return person.code === "BBI" || path.includes("filia wup w bielsku-bialej");
 }
 
 function isCzestochowaPerson(person) {
-  const path = normalizeOrgLocation(person.path || person.unit || "");
+  const path = normalize(person.path || person.unit || "");
   return person.code === "BCZ" || path.includes("filia wup w czestochowie");
 }
 
