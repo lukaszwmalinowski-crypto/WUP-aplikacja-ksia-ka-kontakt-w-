@@ -79,7 +79,22 @@ async function unlockApp(event) {
 }
 
 function personCard(p) {
-  return `<article class="card"><div class="person-top"><div class="avatar">${esc(initials(p.name))}</div><div><div class="name">${esc(p.name)}</div>${p.role ? `<div class="role">${esc(p.role)}</div>` : ""}<div class="unit">${esc(p.unit || p.path || "")}</div></div></div><div class="meta">${p.phone ? `<a class="chip" href="${callHref(p.phone)}">tel. ${esc(p.phone)}</a>` : ""}${p.email ? `<a class="chip email" href="${mailHref(p.email)}">${esc(p.email)}</a>` : ""}${p.room ? `<span class="chip">pok. ${esc(p.room)}</span>` : ""}${p.code ? `<span class="chip">${esc(p.code)}</span>` : ""}</div></article>`;
+  const assignments = Array.isArray(p.assignments) && p.assignments.length
+    ? p.assignments
+    : [{ role: p.role, unit: p.unit || p.path, code: p.code }];
+  const assignmentHtml = assignments
+    .filter(item => item.role || item.unit || item.code)
+    .map(item => `<div class="assignment">${item.role ? `<div class="role">${esc(item.role)}</div>` : ""}${item.unit ? `<div class="unit">${esc(item.unit)}</div>` : ""}</div>`)
+    .join("");
+  const phones = uniqueTextValues(Array.isArray(p.phones) && p.phones.length ? p.phones : [p.phone]);
+  const emails = uniqueTextValues(Array.isArray(p.emails) && p.emails.length ? p.emails : [p.email]);
+  const rooms = uniqueTextValues(Array.isArray(p.rooms) && p.rooms.length ? p.rooms : [p.room]);
+  const codes = uniqueTextValues([...assignments.map(item => item.code), p.code]);
+  const phoneChips = phones.map(phone => `<a class="chip" href="${callHref(phone)}">tel. ${esc(phone)}</a>`).join("");
+  const emailChips = emails.map(email => `<a class="chip email" href="${mailHref(email)}">${esc(email)}</a>`).join("");
+  const roomChips = rooms.map(room => `<span class="chip">pok. ${esc(room)}</span>`).join("");
+  const codeChips = codes.map(code => `<span class="chip">${esc(code)}</span>`).join("");
+  return `<article class="card"><div class="person-top"><div class="avatar">${esc(initials(p.name))}</div><div class="person-details"><div class="name">${esc(p.name)}</div><div class="assignments">${assignmentHtml}</div></div></div><div class="meta">${phoneChips}${emailChips}${roomChips}${codeChips}</div></article>`;
 }
 
 function institutionCard(item) {
@@ -100,11 +115,29 @@ function searchableInst() {
   return [...DATA.pups, ...frsePeople, { nazwa: DATA.umsl.name, typ: "UMŚL", adres: DATA.umsl.address, telefon: DATA.umsl.phone, email: DATA.umsl.email }, ...umslCards];
 }
 
+function mergedPeopleData() {
+  if (!DATA) return [];
+  if (!Array.isArray(DATA._mergedPeople)) DATA._mergedPeople = mergePeople(DATA.people || []);
+  return DATA._mergedPeople;
+}
+
 function currentPeopleList() {
   if (!DATA) return [];
   const q = normalize($("search").value);
-  let list = DATA.people;
-  if (q) list = list.filter(p => normalize([p.name, p.email, p.phone, p.room, p.role, p.unit, p.path, p.code].join(" ")).includes(q));
+  let list = mergedPeopleData();
+  if (q) {
+    list = list.filter(person => {
+      const assignments = Array.isArray(person.assignments) ? person.assignments : [];
+      const searchable = [
+        person.name,
+        ...(person.phones || [person.phone]),
+        ...(person.emails || [person.email]),
+        ...(person.rooms || [person.room]),
+        ...assignments.flatMap(item => [item.role, item.unit, item.code])
+      ].join(" ");
+      return normalize(searchable).includes(q);
+    });
+  }
   if (activeQuick === "inst") list = [];
   return list;
 }
@@ -112,7 +145,7 @@ function currentPeopleList() {
 function renderPeople() {
   if (!DATA) return;
   const list = currentPeopleList();
-  $("peopleCount").textContent = `${list.length} / ${DATA.people.length}`;
+  $("peopleCount").textContent = `${list.length} / ${mergedPeopleData().length}`;
   $("peopleResults").innerHTML = list.slice(0, 80).map(personCard).join("") || `<div class="empty">Brak wyników. Spróbuj wpisać samo nazwisko albo numer telefonu.</div>`;
   updateSignListScopeNote();
 }
@@ -169,26 +202,73 @@ function personKey(person) {
 }
 
 function personIdentityKey(person) {
-  return normalize(person.name).replace(/ł/g, "l").replace(/[^a-z0-9]+/g, " ").trim();
+  const name = normalize(person.name).replace(/ł/g, "l").replace(/[^a-z0-9]+/g, " ").trim();
+  if (name) return `name:${name}`;
+  const email = normalize(person.email).trim();
+  return email ? `email:${email}` : `record:${personKey(person)}`;
 }
 
-function uniquePeople(list) {
+function uniqueTextValues(values) {
   const seen = new Set();
-  return list.filter(person => {
-    const key = personIdentityKey(person) || personKey(person);
-    if (seen.has(key)) return false;
+  return values.filter(value => {
+    const key = normalize(value).replace(/ł/g, "l").replace(/[^a-z0-9]+/g, " ").trim();
+    if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 }
 
+function mergePeople(list) {
+  const groups = new Map();
+  list.forEach(person => {
+    const records = Array.isArray(person._records) && person._records.length ? person._records : [person];
+    records.forEach(record => {
+      const identity = personIdentityKey(record);
+      if (!groups.has(identity)) groups.set(identity, { ...record, _identityKey: identity, _records: [] });
+      groups.get(identity)._records.push(record);
+    });
+  });
+
+  return [...groups.values()].map(person => {
+    const assignments = [];
+    const assignmentKeys = new Set();
+    person._records.forEach(record => {
+      const role = String(record.role || "").trim();
+      const unit = String(record.unit || record.path || "").trim();
+      const code = String(record.code || "").trim();
+      const key = [role, unit, code].map(value => normalize(value).replace(/ł/g, "l").trim()).join("|");
+      if (!assignmentKeys.has(key)) {
+        assignmentKeys.add(key);
+        assignments.push({ role, unit, code });
+      }
+    });
+
+    person.assignments = assignments;
+    person.phones = uniqueTextValues(person._records.map(record => record.phone));
+    person.rooms = uniqueTextValues(person._records.map(record => record.room));
+    person.emails = uniqueTextValues(person._records.map(record => record.email));
+    person.phone = person.phones.join(" / ") || person.phone || "";
+    person.room = person.rooms.join(" / ") || person.room || "";
+    person.email = person.emails[0] || person.email || "";
+    return person;
+  });
+}
+
+function uniquePeople(list) {
+  return mergePeople(list);
+}
+
+function normalizeOrgLocation(value) {
+  return normalize(value).replace(/ł/g, "l");
+}
+
 function isBielskoPerson(person) {
-  const path = normalize(person.path || person.unit || "");
+  const path = normalizeOrgLocation(person.path || person.unit || "");
   return person.code === "BBI" || path.includes("filia wup w bielsku-bialej");
 }
 
 function isCzestochowaPerson(person) {
-  const path = normalize(person.path || person.unit || "");
+  const path = normalizeOrgLocation(person.path || person.unit || "");
   return person.code === "BCZ" || path.includes("filia wup w czestochowie");
 }
 
@@ -223,11 +303,11 @@ function updateSignListScopeNote() {
   if (scope === "filtered") {
     const query = $("search").value.trim();
     note.textContent = query
-      ? `Lista obejmie ${list.length} osób pasujących do wyszukiwania: „${query}”. Możesz wydrukować je alfabetycznie albo według schematu organizacyjnego. Każda osoba pojawi się tylko raz.`
-      : `Lista obejmie aktualne wyniki: ${list.length} osób. Wybierz układ według schematu, aby lista została podzielona na piony, zespoły i filie. Każda osoba pojawi się tylko raz.`;
+      ? `Lista obejmie ${list.length} osób pasujących do wyszukiwania: „${query}”. Możesz wydrukować je alfabetycznie albo według schematu organizacyjnego. Jeżeli ktoś pełni kilka ról, wszystkie zostaną połączone w jednym wierszu.`
+      : `Lista obejmie aktualne wyniki: ${list.length} osób. Wybierz układ według schematu, aby lista została podzielona na piony, zespoły i filie. Jeżeli ktoś pełni kilka ról, wszystkie zostaną połączone w jednym wierszu.`;
     return;
   }
-  note.textContent = `Zakres: ${signListScopeLabel(scope)} - ${list.length} osób. Układ według schematu zachowa podział na komórki organizacyjne i filie. Każda osoba pojawi się tylko raz.`;
+  note.textContent = `Zakres: ${signListScopeLabel(scope)} - ${list.length} osób. Układ według schematu zachowa podział na komórki organizacyjne i filie. Jeżeli ktoś pełni kilka ról, wszystkie zostaną połączone w jednym wierszu.`;
 }
 
 function formatPolishDate(value) {
@@ -238,10 +318,18 @@ function formatPolishDate(value) {
 }
 
 function printableUnit(person) {
-  const role = String(person.role || "").trim();
-  const unit = String(person.unit || person.path || "").trim();
-  if (role && unit) return `${esc(role)}<br><span>${esc(unit)}</span>`;
-  return esc(role || unit || "—");
+  const assignments = Array.isArray(person.assignments) && person.assignments.length
+    ? person.assignments
+    : [{ role: person.role, unit: person.unit || person.path, code: person.code }];
+
+  const rows = assignments.map(assignment => {
+    const role = String(assignment.role || "").trim();
+    const unit = String(assignment.unit || "").trim();
+    if (role && unit) return `<div class="assignment"><strong>${esc(role)}</strong><br><span>${esc(unit)}</span></div>`;
+    return `<div class="assignment">${esc(role || unit || "—")}</div>`;
+  });
+
+  return rows.join("");
 }
 
 function flattenOrgRecords() {
@@ -275,20 +363,20 @@ function branchSchemeRecords(branch) {
 }
 
 function recordsForScheme(scope, allowedPeople) {
-  const allowed = new Set(allowedPeople.map(personKey));
+  const allowedByIdentity = new Map(allowedPeople.map(person => [personIdentityKey(person), person]));
   let records;
   if (scope === "bielsko") records = branchSchemeRecords("bielsko");
   else if (scope === "czestochowa") records = branchSchemeRecords("czestochowa");
   else if (scope === "branches") records = [...branchSchemeRecords("bielsko"), ...branchSchemeRecords("czestochowa")];
   else records = flattenOrgRecords();
   const seen = new Set();
-  return records.filter(record => {
-    if (!allowed.has(personKey(record.person))) return false;
-    const identity = personIdentityKey(record.person) || personKey(record.person);
-    if (seen.has(identity)) return false;
+  return records.reduce((result, record) => {
+    const identity = personIdentityKey(record.person);
+    if (!allowedByIdentity.has(identity) || seen.has(identity)) return result;
     seen.add(identity);
-    return true;
-  });
+    result.push({ ...record, person: allowedByIdentity.get(identity) });
+    return result;
+  }, []);
 }
 
 function schemeSections(scope, allowedPeople) {
@@ -405,7 +493,7 @@ function generateSignList(event) {
   th,td{border:1px solid #222;padding:2.2mm 2mm;vertical-align:middle}
   th{background:#e9edf2;text-align:center;font-size:8.5pt;text-transform:uppercase;letter-spacing:.15px}
   th:nth-child(1){width:9mm}th:nth-child(2){width:51mm}th:nth-child(3){width:70mm}th:nth-child(4){width:auto}
-  td.number{text-align:center}.person-name{font-weight:700}.person-unit{font-size:8.4pt;line-height:1.25}.person-unit span{font-weight:400;color:#333}.signature{height:12mm}
+  td.number{text-align:center}.person-name{font-weight:700}.person-unit{font-size:8.4pt;line-height:1.25}.person-unit span{font-weight:400;color:#333}.assignment+.assignment{margin-top:3px;padding-top:3px;border-top:1px dotted #aaa}.signature{height:12mm}
   .org-section{margin-top:7mm}.org-section:first-of-type{margin-top:0}.section-title{margin:0 0 2.5mm;padding:2.5mm 3mm;background:#111;color:#fff;font-size:11.5pt;line-height:1.25;text-transform:uppercase}
   .unit-row td{background:#dfe6ee;font-weight:700;font-size:8.7pt;padding:2mm 2.2mm}
   .footer-note{margin-top:5mm;font-size:8pt;color:#555;display:flex;justify-content:space-between;gap:8mm}
